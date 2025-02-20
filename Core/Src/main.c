@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "dht11_lib.h"
+#include "CLCD_I2C.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +41,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -53,147 +56,15 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void delay_us(uint32_t us)
-{
-	__HAL_TIM_SET_COUNTER(&htim1,0);
-	HAL_TIM_Base_Start(&htim1);
-	while(__HAL_TIM_GET_COUNTER(&htim1) < us);
-	HAL_TIM_Base_Stop(&htim1);
-}
-
-void delay_ms(uint32_t ms)
-{
-	for(int i = 0; i< ms; i++)
-	{
-		delay_us(1000);
-	}
-}
-
-uint8_t chuc,dv;
-
-void gpio_input()
-{
-	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pin = pin_dht11_Pin;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(pin_dht11_GPIO_Port, &GPIO_InitStruct);
-}
-
-void gpio_output()
-{
-	//RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pin = pin_dht11_Pin;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(pin_dht11_GPIO_Port, &GPIO_InitStruct);
-}
-
-void dht11_rst()
-{
-	gpio_output();
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
-	delay_ms(20);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
-	delay_us(30);
-
-}
-
-uint8_t check_dht11()
-{
-	uint8_t time =0;
-	gpio_input();
-	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1 && time < 100)
-	{
-		time++;
-		delay_us(1);
-	}
-
-	if(time > 80) return 1;
-	else
-		time =0;
-
-	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 0 && time < 100)
-	{
-		time++;
-		delay_us(1);
-	}
-
-	if(time > 80) return 1;
-	else return 0;
-}
-
-uint8_t read_bit_dht11()
-{
-	uint8_t time =0;
-	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1 && time < 100)
-	{
-		time++;
-		delay_us(1);
-	}
-	time = 0;
-	while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 0 && time < 100)
-	{
-		time++;
-		delay_us(1);
-	}
-	delay_us(40);
-
-	if(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0)) return 1;
-	else return 0;
-}
-
-uint8_t read_byte_dht11()
-{
-	uint8_t i;
-	uint8_t data =0;
-	for(i = 0; i < 8; i++)
-	{
-		data = data << 1;
-		data |= read_bit_dht11();
-	}
-	return data;
-}
-
-uint8_t data_read[5] = {0,0,0,0,0};
-
-void read_data_dht11()
-{
-	uint8_t i;
-	dht11_rst();
-
-	if(check_dht11() == 0)
-	{
-		for(i=0;i<8;i++)
-		{
-			data_read[i] = read_byte_dht11();
-		}
-	}
-}
-
-uint8_t dht11_init()
-{
-	gpio_output();
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
-	dht11_rst();
-	return check_dht11();
-}
-
-uint8_t char_to_num(uint8_t num)
-{
-	chuc = (num%100)/10;
-	dv = (num%100)%10;
-}
+extern uint8_t data_read[5];
+CLCD_I2C_Name LCD;
 
 /* USER CODE END 0 */
 
@@ -228,6 +99,9 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
+  MX_I2C1_Init();
+  CLCD_I2C_Init(&LCD, &hi2c1, 0x4e, 24, 4);
+
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -239,11 +113,13 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
 	  read_data_dht11();
 	  delay_ms(100);
-	  char_to_num(data_read[2]);
-	  delay_ms(100);
+	  CLCD_I2C_SetCursor(&LCD,0,0);
+	  LCD_Printf(&LCD,"Do am: %d,%d",data_read[0],data_read[1]);
+	  CLCD_I2C_SetCursor(&LCD,0,1);
+	  LCD_Printf(&LCD,"Nhiet Do: %d,%d",data_read[2],data_read[3]);
+
   }
   /* USER CODE END 3 */
 }
@@ -285,6 +161,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -381,6 +291,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);

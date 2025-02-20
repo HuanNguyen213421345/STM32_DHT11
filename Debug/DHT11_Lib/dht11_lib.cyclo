@@ -1,0 +1,11 @@
+../DHT11_Lib/dht11_lib.c:11:6:delay_us	2
+../DHT11_Lib/dht11_lib.c:19:6:delay_ms	2
+../DHT11_Lib/dht11_lib.c:27:6:gpio_input	1
+../DHT11_Lib/dht11_lib.c:38:6:gpio_output	1
+../DHT11_Lib/dht11_lib.c:49:6:dht11_rst	1
+../DHT11_Lib/dht11_lib.c:58:9:check_dht11	7
+../DHT11_Lib/dht11_lib.c:80:9:read_bit_dht11	6
+../DHT11_Lib/dht11_lib.c:100:9:read_byte_dht11	2
+../DHT11_Lib/dht11_lib.c:112:6:read_data_dht11	3
+../DHT11_Lib/dht11_lib.c:126:9:dht11_init	1
+../DHT11_Lib/dht11_lib.c:134:9:char_to_num	1
